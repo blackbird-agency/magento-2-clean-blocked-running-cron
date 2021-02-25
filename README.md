@@ -2,7 +2,7 @@
 
 [![License: MIT](https://img.shields.io/github/license/blackbird-agency/magento-2-category-empty-button.svg?style=flat-square)](./LICENSE)
 
-This module add a CLI command which allows you to end an CRON job that is unning for a defined time.
+This module add a CLI command which allows you to end a CRON job that is running for a defined time.
 The free source is available at the [GitHub repository](https://github.com/blackbird-agency/magento-2-clean-blocked-running-cron).
 
 ## Setup

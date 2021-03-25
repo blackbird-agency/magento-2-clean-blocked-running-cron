@@ -29,9 +29,9 @@ use Symfony\Component\Console\Output\OutputInterface;
 class CleanBlockedRunningCronCommand extends Command
 {
     protected const HOURS = "hours";
-    protected const HOURS_SHORTCUT = "h";
+    protected const HOURS_SHORTCUT = "H";
     protected const MINUTES = "minutes";
-    protected const MINUTES_SHORTCUT = "m";
+    protected const MINUTES_SHORTCUT = "M";
     protected const CRON = "cron";
     protected const CRON_SHORTCUT = "c";
 
@@ -86,7 +86,7 @@ class CleanBlockedRunningCronCommand extends Command
 
         $this->setHelp(
             "To remove the cron which are blocked, you need to specify their maximum lifetime running.\n"
-            . "Put the hours with --h [HOURS] and/or the minutes with --m [MINUTES].\n"
+            . "Put the hours with -H [HOURS] and/or the minutes with -M [MINUTES].\n"
             . "You can specify a cron with --cron [JOBCODE].");
 
         parent::configure();
@@ -98,8 +98,8 @@ class CleanBlockedRunningCronCommand extends Command
      */
     protected function execute(InputInterface $input, OutputInterface $output): void
     {
-        $hours = $input->getOption(self::HOURS);
-        $minutes = $input->getOption(self::MINUTES);
+        $hours = $input->getOption(self::HOURS) ?? "0";
+        $minutes = $input->getOption(self::MINUTES) ?? "0";
         $cronJobCode = $input->getOption(self::CRON);
         if ($hours || $minutes) {
             $output->writeln("Launching the process ...");

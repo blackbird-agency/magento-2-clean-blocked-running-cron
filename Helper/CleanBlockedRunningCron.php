@@ -21,6 +21,7 @@ namespace Blackbird\CleanBlockedRunningCron\Helper;
 
 
 use DateInterval;
+use Magento\Cron\Model\ResourceModel\Schedule\CollectionFactory as ScheduleCollectionFactory;
 use Magento\Cron\Model\Schedule;
 use Magento\Cron\Model\ScheduleFactory;
 use Magento\Framework\App\Helper\AbstractHelper;
@@ -39,23 +40,30 @@ class CleanBlockedRunningCron extends AbstractHelper
      * @var \Magento\Framework\Stdlib\DateTime\TimezoneInterface
      */
     protected $timezone;
+    /**
+     * @var \Magento\Cron\Model\ResourceModel\Schedule\CollectionFactory
+     */
+    private $scheduleCollectionFactory;
 
 
     /**
      * CleanBlockedRunningCron constructor.
      * @param \Magento\Framework\App\Helper\Context $context
      * @param \Magento\Cron\Model\ScheduleFactory $scheduleFactory
+     * @param \Magento\Cron\Model\ResourceModel\Schedule\CollectionFactory $scheduleCollectionFactory
      * @param \Magento\Framework\Stdlib\DateTime\TimezoneInterface $timezone
      */
     public function __construct
     (
         Context $context,
         ScheduleFactory $scheduleFactory,
+        ScheduleCollectionFactory $scheduleCollectionFactory,
         TimezoneInterface $timezone
     ) {
         parent::__construct($context);
         $this->scheduleFactory = $scheduleFactory;
         $this->timezone = $timezone;
+        $this->scheduleCollectionFactory = $scheduleCollectionFactory;
     }
 
 
@@ -82,7 +90,9 @@ class CleanBlockedRunningCron extends AbstractHelper
     public function cleanSpecifiedBlockedCron($output, $maxTimeHours, $maxTimeMinutes, $cronJobCode): void
     {
         // Get the cron data and add filters
-        $specifiedCron = $this->scheduleFactory->create()->getCollection();
+
+        //$specifiedCron = $this->scheduleFactory->create()->getCollection();
+        $specifiedCron = $this->scheduleCollectionFactory->create();
         $specifiedCron->addFieldToFilter('job_code', $cronJobCode);
         $specifiedCron->addFieldToFilter('status', Schedule::STATUS_RUNNING);
 
@@ -102,13 +112,15 @@ class CleanBlockedRunningCron extends AbstractHelper
                 }
             }
             $specifiedCron->save();
-        } else if ($this->scheduleFactory->create()->getCollection() // fresh new not filtered db call
-            ->addFieldToFilter('job_code', $cronJobCode)->getItems()) {
-            // We already test the other filter higher, so it can only be status problem
-            $output->writeln("Cron {$cronJobCode} is not running.");
         } else {
-            // Not the good job code
-            $output->writeln("Cron {$cronJobCode} was not found. A misspelling ?");
+            if ($this->scheduleCollectionFactory->create() // fresh new not filtered db call
+            ->addFieldToFilter('job_code', $cronJobCode)->getItems()) {
+                // We already test the other filter higher, so it can only be status problem
+                $output->writeln("Cron {$cronJobCode} is not running.");
+            } else {
+                // Not the good job code
+                $output->writeln("Cron {$cronJobCode} was not found. A misspelling ?");
+            }
         }
     }
 
@@ -121,7 +133,7 @@ class CleanBlockedRunningCron extends AbstractHelper
     public function cleanAllBlockedCron($output, $maxTimeHours, $maxTimeMinutes): void
     {
         // Getting the list of CRON which are running
-        $runningJobs = $this->scheduleFactory->create()->getCollection();
+        $runningJobs = $this->scheduleCollectionFactory->create();
         $runningJobs->addFieldToFilter('status', Schedule::STATUS_RUNNING);
 
         // Maximum creation Date and Time of the cron before being considered as jammed
@@ -142,7 +154,7 @@ class CleanBlockedRunningCron extends AbstractHelper
         $output->writeln("{$cronStopped} CRON were jammed.");
     }
 
-    public function execute($output, $hours = 0, $minutes = 0, $cronJobCode = null): void
+    public function execute($output, $hours, $minutes, $cronJobCode): void
     {
         if ($cronJobCode) {
             $this->cleanSpecifiedBlockedCron($output, $hours, $minutes, $cronJobCode);

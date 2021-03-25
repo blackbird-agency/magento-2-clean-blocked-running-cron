@@ -25,6 +25,7 @@ use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
+use TypeError;
 
 class CleanBlockedRunningCronCommand extends Command
 {
@@ -87,7 +88,7 @@ class CleanBlockedRunningCronCommand extends Command
         $this->setHelp(
             "To remove the cron which are blocked, you need to specify their maximum lifetime running.\n"
             . "Put the hours with -H [HOURS] and/or the minutes with -M [MINUTES].\n"
-            . "You can specify a cron with --cron [JOBCODE].");
+            . "You can specify a cron with -c [JOBCODE].");
 
         parent::configure();
     }
@@ -98,9 +99,14 @@ class CleanBlockedRunningCronCommand extends Command
      */
     protected function execute(InputInterface $input, OutputInterface $output): void
     {
-        $hours = $input->getOption(self::HOURS) ?? "0";
-        $minutes = $input->getOption(self::MINUTES) ?? "0";
-        $cronJobCode = $input->getOption(self::CRON);
+        $hours = $input->getOption(self::HOURS) ?? "0";     // Default value is 0
+        $minutes = $input->getOption(self::MINUTES) ?? "0"; // Default value is 0
+        // If $cronJobCode is a list, return the array, if this is not return it (in an array)
+        try {
+            $cronJobCode = explode(",", $input->getOption(self::CRON));
+        } catch (TypeError $typeError) { // If $cronJobCode is null
+            $cronJobCode = [];
+        }
         if ($hours || $minutes) {
             $output->writeln("Launching the process ...");
             $this->cleanBlockedRunningCron->execute($output, $hours, $minutes, $cronJobCode);

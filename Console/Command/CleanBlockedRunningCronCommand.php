@@ -20,7 +20,7 @@ declare(strict_types=1);
 namespace Blackbird\CleanBlockedRunningCron\Console\Command;
 
 
-use Blackbird\CleanBlockedRunningCron\Helper\CleanBlockedRunningCron;
+use Blackbird\CleanBlockedRunningCron\Api\CleanBlockedRunningCronInterface;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
@@ -37,18 +37,18 @@ class CleanBlockedRunningCronCommand extends Command
     protected const CRON_SHORTCUT = "c";
 
     /**
-     * @var \Blackbird\CleanBlockedRunningCron\Helper\CleanBlockedRunningCron
+     * @var \Blackbird\CleanBlockedRunningCron\Model\CleanBlockedRunningCron
      */
     protected $cleanBlockedRunningCron;
 
     /**
      * CleanBlockedRunningCronCommand constructor.
+     * @param \Blackbird\CleanBlockedRunningCron\Api\CleanBlockedRunningCronInterface $cleanBlockedRunningCron
      * @param string|null $name
-     * @param \Blackbird\CleanBlockedRunningCron\Helper\CleanBlockedRunningCron $cleanBlockedRunningCron
      */
     public function __construct
     (
-        CleanBlockedRunningCron $cleanBlockedRunningCron,
+        CleanBlockedRunningCronInterface $cleanBlockedRunningCron,
         string $name = null
     ) {
         parent::__construct($name);

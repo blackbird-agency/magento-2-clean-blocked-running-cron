@@ -17,20 +17,26 @@
 
 declare(strict_types=1);
 
-namespace Blackbird\CleanBlockedRunningCron\Helper;
+namespace Blackbird\CleanBlockedRunningCron\Model;
 
 
+use Blackbird\CleanBlockedRunningCron\Api\CleanBlockedRunningCronInterface;
 use DateInterval;
 use Magento\Cron\Model\ResourceModel\Schedule\CollectionFactory as ScheduleCollectionFactory;
 use Magento\Cron\Model\Schedule;
 use Magento\Cron\Model\ScheduleFactory;
-use Magento\Framework\App\Helper\AbstractHelper;
-use Magento\Framework\App\Helper\Context;
+use Magento\Framework\Api\AttributeValueFactory;
+use Magento\Framework\Api\ExtensionAttributesFactory;
+use Magento\Framework\Data\Collection\AbstractDb;
+use Magento\Framework\Model\AbstractExtensibleModel;
+use Magento\Framework\Model\Context;
+use Magento\Framework\Model\ResourceModel;
+use Magento\Framework\Registry;
 use Magento\Framework\Stdlib\DateTime\TimezoneInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 
 
-class CleanBlockedRunningCron extends AbstractHelper
+class CleanBlockedRunningCron extends AbstractExtensibleModel implements CleanBlockedRunningCronInterface
 {
 
     /**
@@ -49,22 +55,34 @@ class CleanBlockedRunningCron extends AbstractHelper
 
     /**
      * CleanBlockedRunningCron constructor.
-     * @param \Magento\Framework\App\Helper\Context $context
+     * @param \Magento\Framework\Model\Context $context
+     * @param \Magento\Framework\Registry $registry
+     * @param \Magento\Framework\Api\ExtensionAttributesFactory $extensionFactory
+     * @param \Magento\Framework\Api\AttributeValueFactory $customAttributeFactory
      * @param \Magento\Cron\Model\ScheduleFactory $scheduleFactory
      * @param \Magento\Cron\Model\ResourceModel\Schedule\CollectionFactory $scheduleCollectionFactory
      * @param \Magento\Framework\Stdlib\DateTime\TimezoneInterface $timezone
+     * @param \Magento\Framework\Model\ResourceModel\AbstractResource|null $resource
+     * @param \Magento\Framework\Data\Collection\AbstractDb|null $resourceCollection
+     * @param array $data
      */
-    public function __construct
-    (
+    public function __construct(
         Context $context,
+        Registry $registry,
+        ExtensionAttributesFactory $extensionFactory,
+        AttributeValueFactory $customAttributeFactory,
         ScheduleFactory $scheduleFactory,
         ScheduleCollectionFactory $scheduleCollectionFactory,
-        TimezoneInterface $timezone
+        TimezoneInterface $timezone,
+        ResourceModel\AbstractResource $resource = null,
+        AbstractDb $resourceCollection = null,
+        array $data = []
     ) {
-        parent::__construct($context);
+        parent::__construct($context, $registry, $extensionFactory, $customAttributeFactory, $resource,
+            $resourceCollection, $data);
         $this->scheduleFactory = $scheduleFactory;
-        $this->timezone = $timezone;
         $this->scheduleCollectionFactory = $scheduleCollectionFactory;
+        $this->timezone = $timezone;
     }
 
 
@@ -73,7 +91,7 @@ class CleanBlockedRunningCron extends AbstractHelper
      * @param $maxTimeMinutes
      * @return string
      */
-    public function getLastValidCreationDate($maxTimeHours, $maxTimeMinutes): string
+    protected function getLastValidCreationDate($maxTimeHours, $maxTimeMinutes): string
     {
         return $this->timezone
             ->date()
@@ -121,8 +139,10 @@ class CleanBlockedRunningCron extends AbstractHelper
                         $runningJob->setMessages('Error: This CRON was jammed.');
                         $output->writeln("Cron {$runningJob->getJobCode()} is jammed. Stopping it.");
                         $cronStopped++;
-                    } else if (isset($cronJobCodes[$cronJobCodeIndex])) {
-                        $output->writeln("Cron {$runningJob->getJobCode()} is running but not jammed with your parameters.");
+                    } else {
+                        if (isset($cronJobCodes[$cronJobCodeIndex])) {
+                            $output->writeln("Cron {$runningJob->getJobCode()} is running but not jammed with your parameters.");
+                        }
                     }
                 }
 

@@ -20,6 +20,7 @@ declare(strict_types=1);
 namespace Blackbird\CleanBlockedRunningCron\Helper;
 
 
+use DateInterval;
 use Magento\Cron\Model\Schedule;
 use Magento\Cron\Model\ScheduleFactory;
 use Magento\Framework\App\Helper\AbstractHelper;
@@ -67,7 +68,7 @@ class CleanBlockedRunningCron extends AbstractHelper
     {
         return $this->timezone
             ->date()
-            ->sub(new \DateInterval("PT{$maxTimeHours}H{$maxTimeMinutes}M"))
+            ->sub(new DateInterval("PT{$maxTimeHours}H{$maxTimeMinutes}M"))
             ->format('Y-m-d H:i:s');
     }
 
@@ -141,7 +142,7 @@ class CleanBlockedRunningCron extends AbstractHelper
         $output->writeln("{$cronStopped} CRON were jammed.");
     }
 
-    public function execute($output, $hours, $minutes, $cronJobCode = null): void
+    public function execute($output, $hours = 0, $minutes = 0, $cronJobCode = null): void
     {
         if ($cronJobCode) {
             $this->cleanSpecifiedBlockedCron($output, $hours, $minutes, $cronJobCode);

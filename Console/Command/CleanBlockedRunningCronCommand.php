@@ -19,7 +19,6 @@ declare(strict_types=1);
 
 namespace Blackbird\CleanBlockedRunningCron\Console\Command;
 
-
 use Blackbird\CleanBlockedRunningCron\Api\CleanBlockedRunningCronInterface;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
@@ -27,6 +26,10 @@ use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use TypeError;
 
+/**
+ * Class CleanBlockedRunningCronCommand
+ * @package Blackbird\CleanBlockedRunningCron\Console\Command
+ */
 class CleanBlockedRunningCronCommand extends Command
 {
     protected const HOURS = "hours";
@@ -46,8 +49,7 @@ class CleanBlockedRunningCronCommand extends Command
      * @param \Blackbird\CleanBlockedRunningCron\Api\CleanBlockedRunningCronInterface $cleanBlockedRunningCron
      * @param string|null $name
      */
-    public function __construct
-    (
+    public function __construct(
         CleanBlockedRunningCronInterface $cleanBlockedRunningCron,
         string $name = null
     ) {
@@ -61,21 +63,22 @@ class CleanBlockedRunningCronCommand extends Command
     protected function configure(): void
     {
         $this->setName("cron:blocked:clean");
-
         $this->setDescription('Kill the cron which are jammed in running');
 
         $this->addOption(
             self::HOURS,
             self::HOURS_SHORTCUT,
             InputOption::VALUE_REQUIRED,
-            'Hours'
+            'Hours',
+            0
         );
 
         $this->addOption(
             self::MINUTES,
             self::MINUTES_SHORTCUT,
             InputOption::VALUE_REQUIRED,
-            'Minutes'
+            'Minutes',
+            0
         );
 
         $this->addOption(
@@ -99,14 +102,16 @@ class CleanBlockedRunningCronCommand extends Command
      */
     protected function execute(InputInterface $input, OutputInterface $output): void
     {
-        $hours = $input->getOption(self::HOURS) ?? "0";     // Default value is 0
-        $minutes = $input->getOption(self::MINUTES) ?? "0"; // Default value is 0
+        $hours = $input->getOption(self::HOURS);
+        $minutes = $input->getOption(self::MINUTES);
+
         // If $cronJobCode is a list, return the array, if this is not return it (in an array)
         try {
             $cronJobCode = explode(",", $input->getOption(self::CRON));
         } catch (TypeError $typeError) { // If $cronJobCode is null
             $cronJobCode = [];
         }
+
         if ($hours || $minutes) {
             $output->writeln("Launching the process ...");
             $this->cleanBlockedRunningCron->execute($output, $hours, $minutes, $cronJobCode);

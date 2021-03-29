@@ -19,70 +19,66 @@ declare(strict_types=1);
 
 namespace Blackbird\CleanBlockedRunningCron\Model;
 
-
 use Blackbird\CleanBlockedRunningCron\Api\CleanBlockedRunningCronInterface;
-use DateInterval;
 use Magento\Cron\Model\ResourceModel\Schedule\CollectionFactory as ScheduleCollectionFactory;
 use Magento\Cron\Model\Schedule;
 use Magento\Cron\Model\ScheduleFactory;
-use Magento\Framework\Api\AttributeValueFactory;
-use Magento\Framework\Api\ExtensionAttributesFactory;
-use Magento\Framework\Data\Collection\AbstractDb;
-use Magento\Framework\Model\AbstractExtensibleModel;
-use Magento\Framework\Model\Context;
-use Magento\Framework\Model\ResourceModel;
-use Magento\Framework\Registry;
+use Magento\Framework\Stdlib\DateTime\DateTime;
 use Magento\Framework\Stdlib\DateTime\TimezoneInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 
-
-class CleanBlockedRunningCron extends AbstractExtensibleModel implements CleanBlockedRunningCronInterface
+/**
+ * Class CleanBlockedRunningCron
+ * @package Blackbird\CleanBlockedRunningCron\Model
+ */
+class CleanBlockedRunningCron implements CleanBlockedRunningCronInterface
 {
 
     /**
      * @var \Magento\Cron\Model\ScheduleFactory
      */
     protected $scheduleFactory;
+
     /**
      * @var \Magento\Framework\Stdlib\DateTime\TimezoneInterface
      */
     protected $timezone;
+
     /**
      * @var \Magento\Cron\Model\ResourceModel\Schedule\CollectionFactory
      */
-    private $scheduleCollectionFactory;
+    protected $scheduleCollectionFactory;
 
+    /**
+     * @var \Magento\Cron\Model\ResourceModel\Schedule
+     */
+    protected $scheduleResource;
+
+    /**
+     * @var \Magento\Framework\Stdlib\DateTime\DateTime
+     */
+    protected $dateTime;
 
     /**
      * CleanBlockedRunningCron constructor.
-     * @param \Magento\Framework\Model\Context $context
-     * @param \Magento\Framework\Registry $registry
-     * @param \Magento\Framework\Api\ExtensionAttributesFactory $extensionFactory
-     * @param \Magento\Framework\Api\AttributeValueFactory $customAttributeFactory
      * @param \Magento\Cron\Model\ScheduleFactory $scheduleFactory
      * @param \Magento\Cron\Model\ResourceModel\Schedule\CollectionFactory $scheduleCollectionFactory
      * @param \Magento\Framework\Stdlib\DateTime\TimezoneInterface $timezone
-     * @param \Magento\Framework\Model\ResourceModel\AbstractResource|null $resource
-     * @param \Magento\Framework\Data\Collection\AbstractDb|null $resourceCollection
-     * @param array $data
+     * @param \Magento\Cron\Model\ResourceModel\Schedule $scheduleResource
+     * @param \Magento\Framework\Stdlib\DateTime\DateTime $dateTime
      */
     public function __construct(
-        Context $context,
-        Registry $registry,
-        ExtensionAttributesFactory $extensionFactory,
-        AttributeValueFactory $customAttributeFactory,
         ScheduleFactory $scheduleFactory,
         ScheduleCollectionFactory $scheduleCollectionFactory,
         TimezoneInterface $timezone,
-        ResourceModel\AbstractResource $resource = null,
-        AbstractDb $resourceCollection = null,
-        array $data = []
+        \Magento\Cron\Model\ResourceModel\Schedule $scheduleResource,
+        DateTime $dateTime
     ) {
-        parent::__construct($context, $registry, $extensionFactory, $customAttributeFactory, $resource,
-            $resourceCollection, $data);
         $this->scheduleFactory = $scheduleFactory;
         $this->scheduleCollectionFactory = $scheduleCollectionFactory;
         $this->timezone = $timezone;
+        $this->scheduleResource = $scheduleResource;
+        $this->dateTime = $dateTime;
     }
 
 
@@ -91,80 +87,47 @@ class CleanBlockedRunningCron extends AbstractExtensibleModel implements CleanBl
      * @param $maxTimeMinutes
      * @return string
      */
-    protected function getLastValidCreationDate($maxTimeHours, $maxTimeMinutes): string
+    protected function getLastValidCreationDate($maxTimeHours = 0, $maxTimeMinutes = 0): string
     {
-        return $this->timezone
-            ->date()
-            ->sub(new DateInterval("PT{$maxTimeHours}H{$maxTimeMinutes}M"))
-            ->format('Y-m-d H:i:s');
+        return $this->dateTime->gmtDate(
+            'Y-m-d H:i:s',
+            \strtotime('- ' . $maxTimeHours . ' hours - ' . $maxTimeMinutes . ' minutes')
+        );
     }
 
-
     /**
-     * Clean the jammed CRON
-     * @param \Symfony\Component\Console\Output\OutputInterface $output
-     * @param string $hours
-     * @param string $minutes
-     * @param array $cronJobCodes
+     * {@inheritDoc}
      */
-    public function execute(OutputInterface $output, string $hours, string $minutes, array $cronJobCodes): void
+    public function execute(OutputInterface $output, $hours, $minutes, array $cronJobCodes = []): void
     {
-        // Number of stopped CRON
         $cronStopped = 0;
-        // Index of the Cron Job Code in the Array
-        $cronJobCodeIndex = 0;
+        $lastDateTimeOfCreation = $this->getLastValidCreationDate($hours, $minutes);
 
-        // if $cronJobCodes is not defined ([]), 1 loop where all running CRON are processed
-        // else it will loop for every cron Job Code with name as filter
-        do {
+        /** @var \Magento\Cron\Model\ResourceModel\Schedule\Collection $runningJobs */
+        $runningJobs = $this->scheduleCollectionFactory->create()
+            ->addFieldToFilter('status', Schedule::STATUS_RUNNING)
+            ->addFieldToFilter('executed_at', ['lt' => $lastDateTimeOfCreation]);
 
-            // Getting the list of CRON which are running
-            $runningJobs = $this->scheduleCollectionFactory->create();
-            $runningJobs->addFieldToFilter('status', Schedule::STATUS_RUNNING);
+        // If there is specified cron
+        if (!empty($cronJobCodes)) {
+            $runningJobs->addFieldToFilter('job_code', ['in' => $cronJobCodes]);
+        }
 
-            // If there is specified cron
-            if (isset($cronJobCodes[$cronJobCodeIndex])) {
-                $runningJobs->addFieldToFilter('job_code', $cronJobCodes[$cronJobCodeIndex]);
+        // For each jammed cron job change the status to 'error' to unlock the next execution
+        /** @var Schedule $job */
+        foreach ($runningJobs as $job) {
+            try {
+                $job->setStatus(Schedule::STATUS_ERROR);
+                $job->setMessages('Error: This CRON was jammed. Fixed at ' . strftime('%Y-%m-%d %H:%M:%S', $this->dateTime->gmtTimestamp()));
+                // Repository for Schedule doesn't exists, need to use resource model
+                $this->scheduleResource->save($job);
+
+                $output->writeln("Cron {$job->getJobCode()} is jammed. Stopping it.");
+                $cronStopped++;
+            } catch (\Exception $e) {
+                $output->writeln($e->getMessage());
             }
-
-            // Checking if items fill filters conditions and get them
-            if ($runningJobs->getItems()) {
-                // Maximum creation Date and Time of the cron before being considered as jammed
-                $lastDateTimeOfCreation = $this->getLastValidCreationDate($hours, $minutes);
-
-                foreach ($runningJobs as $runningJob) {
-                    // if the time is up
-                    if ($runningJob->getExecutedAt() < $lastDateTimeOfCreation) {
-                        $runningJob->setStatus(Schedule::STATUS_ERROR);
-                        $runningJob->setMessages('Error: This CRON was jammed.');
-                        $output->writeln("Cron {$runningJob->getJobCode()} is jammed. Stopping it.");
-                        $cronStopped++;
-                    } else {
-                        if (isset($cronJobCodes[$cronJobCodeIndex])) {
-                            $output->writeln("Cron {$runningJob->getJobCode()} is running but not jammed with your parameters.");
-                        }
-                    }
-                }
-
-                // Save in database
-                $runningJobs->save();
-
-            } else {
-                if (isset($cronJobCodes[$cronJobCodeIndex])) {
-                    if ($this->scheduleCollectionFactory->create() // fresh new not filtered db call
-                    ->addFieldToFilter('job_code', $cronJobCodes[$cronJobCodeIndex])->getItems()) {
-                        // We already test the other filter higher, so it can only be status problem
-                        $output->writeln("Cron {$cronJobCodes[$cronJobCodeIndex]} is not running.");
-                    } else {
-                        // Not the good job code
-                        $output->writeln("Cron {$cronJobCodes[$cronJobCodeIndex]} was not found. A misspelling ?");
-                    }
-                }
-            }
-
-            $cronJobCodeIndex++;
-
-        } while ($cronJobCodeIndex <= count($cronJobCodes));
+        }
 
         $output->writeln("{$cronStopped} CRON were jammed.");
     }

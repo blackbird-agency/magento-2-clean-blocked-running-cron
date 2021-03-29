@@ -19,11 +19,21 @@ declare(strict_types=1);
 
 namespace Blackbird\CleanBlockedRunningCron\Api;
 
-
 use Symfony\Component\Console\Output\OutputInterface;
 
-
+/**
+ * Interface CleanBlockedRunningCronInterface
+ * @package Blackbird\CleanBlockedRunningCron\Api
+ */
 interface CleanBlockedRunningCronInterface
 {
-    public function execute(OutputInterface $output, string $hours, string $minutes, array $cronJobCodes): void;
+    /**
+     * Clean the jammed CRON depending on job code and running time
+     *
+     * @param \Symfony\Component\Console\Output\OutputInterface $output
+     * @param string|int $hours
+     * @param string|int $minutes
+     * @param array $cronJobCodes
+     */
+    public function execute(OutputInterface $output, $hours, $minutes, array $cronJobCodes): void;
 }

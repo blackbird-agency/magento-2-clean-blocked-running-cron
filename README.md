@@ -5,6 +5,11 @@
 This module add a CLI command which allows you to end a CRON job that is running for a defined time.
 The free source is available at the [GitHub repository](https://github.com/blackbird-agency/magento-2-clean-blocked-running-cron).
 
+## Requirements
+
+- PHP >= 7.1
+- Magento >= 2.2
+
 ## Setup
 
 ### Get the package
@@ -33,7 +38,7 @@ php bin/magento setup:upgrade
 
 This extension gives you a new CLI command for your Magento :
 ```
-php bin/magento cron:blocked:clean -H <hours> -M <minutes> -c <job code(s)>
+php <magento-root-dir>/bin/magento cron:blocked:clean -H <hours> -M <minutes> -c <job code(s)>
 ```
 
 #### Parameters

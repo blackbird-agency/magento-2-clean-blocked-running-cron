@@ -98,7 +98,7 @@ class CleanBlockedRunningCron implements CleanBlockedRunningCronInterface
     /**
      * {@inheritDoc}
      */
-    public function execute(OutputInterface $output, $hours, $minutes, array $cronJobCodes = []): void
+    public function execute(OutputInterface $output, $hours, $minutes, array $cronJobCodes = [])
     {
         $cronStopped = 0;
         $lastDateTimeOfCreation = $this->getLastValidCreationDate($hours, $minutes);
@@ -118,7 +118,7 @@ class CleanBlockedRunningCron implements CleanBlockedRunningCronInterface
         foreach ($runningJobs as $job) {
             try {
                 $job->setStatus(Schedule::STATUS_ERROR);
-                $job->setMessages('Error: This CRON was jammed. Fixed at ' . strftime('%Y-%m-%d %H:%M:%S', $this->dateTime->gmtTimestamp()));
+                $job->setMessages('Error: This CRON was jammed. Fixed at ' . (new \DateTime('@' . $this->dateTime->gmtTimestamp()))->format('Y-m-d H:i:s'));
                 // Repository for Schedule doesn't exists, need to use resource model
                 $this->scheduleResource->save($job);
 

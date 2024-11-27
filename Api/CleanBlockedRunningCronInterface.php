@@ -35,5 +35,5 @@ interface CleanBlockedRunningCronInterface
      * @param string|int $minutes
      * @param array $cronJobCodes
      */
-    public function execute(OutputInterface $output, $hours, $minutes, array $cronJobCodes): void;
+    public function execute(OutputInterface $output, $hours, $minutes, array $cronJobCodes);
 }

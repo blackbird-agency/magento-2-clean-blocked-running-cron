@@ -51,7 +51,7 @@ class CleanBlockedRunningCronCommand extends Command
      */
     public function __construct(
         CleanBlockedRunningCronInterface $cleanBlockedRunningCron,
-        string $name = null
+        ?string $name = null
     ) {
         parent::__construct($name);
         $this->cleanBlockedRunningCron = $cleanBlockedRunningCron;
